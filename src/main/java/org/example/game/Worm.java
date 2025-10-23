@@ -7,6 +7,11 @@ public class Worm {
     private Direction direction = Direction.RIGHT;
     private final List<Cells> body = new ArrayList<>();
     private final int boardSize;
+    // Counts how many times moveCells() has been called. When it reaches a multiple of growthInterval,
+    // the worm grows by one cell (a new tail segment is appended at the previous tail position).
+    private int moveCount = 0;
+    // Number of moves between growth events. Default is 3 but can be changed at any time via setter.
+    private int growthInterval = 3;
 
     /**
      * Creates a Worm on a square board and places its initial head at (0, 0).
@@ -19,6 +24,40 @@ public class Worm {
         this.boardSize = boardSize;
         Cells cell = new Cells(0, 0);
         body.add(cell);
+    }
+
+    /**
+     * Creates a Worm and configures its growth interval at construction time.
+     *
+     * @param boardSize the board size
+     * @param growthInterval positive integer number of moves between growths
+     */
+    public Worm(int boardSize, int growthInterval) {
+        this(boardSize);
+        setGrowthInterval(growthInterval);
+    }
+
+    /**
+     * Configure how many moves it takes before the worm grows by one cell.
+     * A value <= 0 is not allowed.
+     *
+     * This can be called at any time; it affects the next growth checks. It does not retroactively
+     * change previously scheduled growth.
+     *
+     * @param interval positive integer number of moves between growths
+     */
+    public void setGrowthInterval(int interval) {
+        if (interval <= 0) throw new IllegalArgumentException("growthInterval must be > 0");
+        this.growthInterval = interval;
+    }
+
+    /**
+     * Get the configured growth interval (defaults to 3).
+     *
+     * @return moves between growth events
+     */
+    public int getGrowthInterval() {
+        return growthInterval;
     }
 
     /**
@@ -47,13 +86,31 @@ public class Worm {
      * The worm's body list is updated in place with moved segment positions. Cells that lie within the board
      * bounds are marked with the string "X"; positions outside the board are ignored.
      *
+     * Additionally, the worm grows by one cell every `growthInterval` moves: the previous tail position is appended as a new
+     * tail segment on every Nth invocation of this method where N == growthInterval.
+     *
      * @return a boardSize-by-boardSize String[][] where occupied cells contain "X" and all other entries are null
      */
     public String[][] moveCells() {
-        // Move each cell in the same direction (preserve original behavior), creating new Cells instances
-        for (int i = body.size() - 1; i >= 0; i--) {
-            Cells moved = moveCell(body.get(i), direction);
-            body.set(i, moved);
+        // Snapshot current positions so segments can follow the previous segment's old position.
+        List<Cells> previousPositions = new ArrayList<>(body);
+
+        // Move head by one step in the current direction.
+        Cells oldHead = previousPositions.get(0);
+        Cells newHead = moveCell(oldHead, direction);
+        body.set(0, newHead);
+
+        // Move each following segment into the previous position of the segment ahead of it.
+        for (int i = 1; i < body.size(); i++) {
+            Cells pos = previousPositions.get(i - 1);
+            body.set(i, pos);
+        }
+
+        // Increment move counter and grow once every `growthInterval` moves by appending the previous tail position
+        moveCount++;
+        if (moveCount % growthInterval == 0) {
+            Cells prevTail = previousPositions.get(previousPositions.size() - 1);
+            body.add(new Cells(prevTail.x(), prevTail.y()));
         }
 
         String[][] board = new String[boardSize][boardSize];
@@ -65,6 +122,15 @@ public class Worm {
             }
         }
         return board;
+    }
+
+    /**
+     * Defensive copy of the worm's body for inspections in tests.
+     *
+     * @return an unmodifiable copy of the worm's body (head first)
+     */
+    public List<Cells> getBody() {
+        return List.copyOf(body);
     }
 
     /**

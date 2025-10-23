@@ -5,6 +5,12 @@ public enum Direction {
     private final int x;
     private final int y;
 
+    /**
+     * Creates a Direction with the specified x and y components.
+     *
+     * @param x the x component of the direction vector
+     * @param y the y component of the direction vector
+     */
     Direction(int x, int y) {
         this.x = x;
         this.y = y;

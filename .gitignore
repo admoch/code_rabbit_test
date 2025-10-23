@@ -37,3 +37,4 @@ replay_pid*
 /target/surefire-reports/TEST-org.example.GameTest.xml
 /.idea/vcs.xml
 /target/
+/.idea/
